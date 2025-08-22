@@ -10,13 +10,15 @@ This installer aims to provide a plug-and-play Docker-based Laravel environment 
 
 ## Installation
 
-Run the following command in the root folder of your Laravel project.
+First, after installing Laravel, setup your `.env` file.
+
+Then run the following command in the root folder of your Laravel project.
 
 ```bash
 mkdir -p laravel-environment-installer && \
 curl -sL https://github.com/Talpx1/laravel-environment-installer/archive/refs/heads/main.tar.gz | \
-tar xz --strip=1 -C laravel-environment-installer` && \
-bash ./laravel-environment-installer/install.sh
+tar xz --strip=1 -C laravel-environment-installer && \
+bash ./laravel-environment-installer/install.bash
 ```
 
 ## What is provided
