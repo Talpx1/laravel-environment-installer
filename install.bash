@@ -338,8 +338,8 @@ fi
 # region php stan
 read -rp "Do you want to use phpstan (larastan)? (y/N): " USE_PHPSTAN
 if [[ "$USE_PHPSTAN" == "y" ]]; then
-    composer_require_dev phpstan/extension-installer --with-all-dependencies
-    composer_require_dev larastan/larastan phpstan/phpstan-deprecation-rules
+    composer_run config --no-plugins allow-plugins.phpstan/extension-installer true
+    composer_require_dev larastan/larastan phpstan/extension-installer phpstan/phpstan-deprecation-rules
     ok "installed php stan"
 else
     rm "$RESOURCES_DIR/phpstan.neon"
