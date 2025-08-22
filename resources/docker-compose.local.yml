@@ -1,0 +1,71 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+      args:
+        - APP_ENV=${APP_ENV:-production}
+        - WWWUID=${UID:-1000}
+        - WWWGID=${GID:-1000}
+    image: %VENDOR%/%IMAGE_NAME%
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+      - "${VITE_PORT:-5173}:${VITE_PORT:-5173}"
+    volumes:
+      - ".:/var/www/html"
+      - "~/.ssh:/var/www/.ssh"
+    networks:
+      - %APP_SLUG%
+    depends_on:
+      - db
+      - mailpit
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: "${DB_PASSWORD}"
+      POSTGRES_DB: "${DB_DATABASE}"
+      POSTGRES_USER: "${DB_USERNAME}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data
+    ports:
+      - "${FORWARD_DB_PORT:-5432}:5432"
+    networks:
+      - %APP_SLUG%
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "pg_isready",
+          "-q",
+          "-d",
+          "${DB_DATABASE}",
+          "-U",
+          "${DB_USERNAME}",
+        ]
+      retries: 3
+      timeout: 5s
+
+  mailpit:
+    image: "axllent/mailpit:latest"
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_MAILPIT_PORT:-1025}:1025"
+      - "${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025"
+    networks:
+      - %APP_SLUG%
+
+networks:
+  %APP_SLUG%:
+    driver: bridge
+volumes:
+  pgsql_data:

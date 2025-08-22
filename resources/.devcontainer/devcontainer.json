@@ -1,0 +1,51 @@
+// https://aka.ms/devcontainer.json
+{
+    "name": "%APP_NAME%",
+    "dockerComposeFile": [
+        "../docker-compose.local.yml"
+    ],
+    "service": "app",
+    "workspaceFolder": "/var/www/html",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "aaron-bond.better-comments",
+                "m1guelpf.better-pest",
+                "streetsidesoftware.code-spell-checker",
+                "streetsidesoftware.code-spell-checker-italian",
+                "DEVSENSE.composer-php-vscode",
+                "DEVSENSE.intelli-php-vscode",
+                "DEVSENSE.profiler-php-vscode",
+                "DEVSENSE.phptools-vscode",
+                "mikestead.dotenv",
+                "EditorConfig.EditorConfig",
+                "eamodio.gitlens",
+                "oderwat.indent-rainbow",
+                "shufo.vscode-blade-formatter",
+                "austenc.laravel-blade-spacer",
+                "codingyu.laravel-goto-view",
+                "cjhowe7.laravel-blade",
+                "naoray.laravel-goto-components",
+                "pgl.laravel-jump-controller",
+                "IBM.output-colorizer",
+                "christian-kohler.path-intellisense",
+                "neilbrayfield.php-docblocker",
+                "SanderRonde.phpstan-vscode",
+                "wayou.vscode-todo-highlight",
+                "Gruntfuggly.todo-tree",
+                "neptunedesign.vs-sequential-number",
+                "ms-vscode-remote.remote-wsl",
+                "github.vscode-github-actions",
+                "open-southeners.laravel-pint",
+                "laravel.vscode-laravel",
+                "bradlc.vscode-tailwindcss"
+            ],
+            "settings": {}
+        }
+    },
+    "remoteUser": "www-data",
+    "postCreateCommand": "chown -R www-data:www-data /var/www/html 2>/dev/null || true"
+    // "forwardPorts": [],
+    // "runServices": [],
+    // "shutdownAction": "none",
+}
