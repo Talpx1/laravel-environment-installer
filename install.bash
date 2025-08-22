@@ -105,6 +105,20 @@ fi
 ok 'composer found'
 # endregion
 
+# region --- app name ---
+DEFAULT_APP_NAME=$(grep -E '^APP_NAME=' "$ROOT_DIR/.env" | cut -d= -f2- | tr -d ' ' || true)
+read -rp "Specify the app name [${DEFAULT_APP_NAME:-MyApp}]: " APP_NAME
+APP_NAME=${APP_NAME:-$DEFAULT_APP_NAME}
+
+# generate slug
+GENERATED_APP_SLUG=$(echo "$APP_NAME" | iconv -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g;s/^_+|_+$//g')
+read -rp "Specify the app slug [${GENERATED_APP_SLUG}]: " APP_SLUG
+APP_SLUG=${APP_SLUG:-$GENERATED_APP_SLUG}
+
+ok "APP_NAME = $APP_NAME"
+ok "APP_SLUG = $APP_SLUG"
+# endregion
+
 # region --- DB setup ---
 DB_CONNECTION=$(grep -E '^DB_CONNECTION=' "$ROOT_DIR/.env" | cut -d= -f2- | tr -d ' ')
 if [[ -z "$DB_CONNECTION" ]]; then
@@ -171,20 +185,6 @@ fi
 # region --- Node version ---
 read -rp "Specify the node version you wish to use: " NODE_VERSION
 ok "Node version: $NODE_VERSION"
-# endregion
-
-# region --- app name ---
-DEFAULT_APP_NAME=$(grep -E '^APP_NAME=' "$ROOT_DIR/.env" | cut -d= -f2- | tr -d ' ' || true)
-read -rp "Specify the app name [${DEFAULT_APP_NAME:-MyApp}]: " APP_NAME
-APP_NAME=${APP_NAME:-$DEFAULT_APP_NAME}
-
-# generate slug
-GENERATED_APP_SLUG=$(echo "$APP_NAME" | iconv -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g;s/^_+|_+$//g')
-read -rp "Specify the app slug [${GENERATED_APP_SLUG}]: " APP_SLUG
-APP_SLUG=${APP_SLUG:-$GENERATED_APP_SLUG}
-
-ok "APP_NAME = $APP_NAME"
-ok "APP_SLUG = $APP_SLUG"
 # endregion
 
 # region --- vendor ---
