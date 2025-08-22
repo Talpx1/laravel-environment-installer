@@ -6,7 +6,6 @@ This installer aims to provide a plug-and-play Docker-based Laravel environment 
 
 - A [Laravel installation](https://laravel.com/docs/installation)
 - [Docker](https://www.docker.com/)
-- [laragear/preload](https://github.com/Laragear/Preload) composer package (will get auto-installed)
 
 ## Installation
 
@@ -22,7 +21,7 @@ bash ./laravel-environment-installer/install.bash
 ```
 
 ## What is provided
-
+### !!! TO-DO !!!
 - devcontainer with Laravel and [Filament](https://filamentphp.com/) extensions preconfigured
 - [GitHub action](https://github.com/features/actions) for image build and push to [DockerHub](https://hub.docker.com/)
 - Docker image with:
