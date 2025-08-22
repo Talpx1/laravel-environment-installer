@@ -139,7 +139,11 @@ ok "VENDOR = ${VENDOR}"
 # endregion
 
 # region --- scheduler timezone ---
-read -rp "Specify app timezone [UTC]\n(this won't modify the app.timezone config, that should stay UTC, but will set a SCHEDULER_TIMEZONE env var to ensure that the scheduled commands are run at the right time): " SCHEDULER_TIMEZONE
+echo -e "Specify app timezone"
+echo -e "this won't modify the app.timezone config, that should stay UTC"
+echo -e "but will set a SCHEDULER_TIMEZONE env var to ensure that the" 
+echo -e "scheduled commands are run at the right time"
+read -rp "[UTC]: " SCHEDULER_TIMEZONE
 set_env_var SCHEDULER_TIMEZONE "${SCHEDULER_TIMEZONE}"
 APP_CONFIG="${ROOT_DIR}/config/app.php"
 sed -i "/'timezone' => 'UTC',\n/a \    'scheduler_timezone' => env('SCHEDULER_TIMEZONE', 'UTC'),\n" "$APP_CONFIG"
