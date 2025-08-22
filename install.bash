@@ -106,7 +106,7 @@ ok 'composer found'
 # endregion
 
 # region --- app name ---
-DEFAULT_APP_NAME=$(grep -E '^APP_NAME=' "$ROOT_DIR/.env" | cut -d= -f2- | tr -d ' ' || true)
+DEFAULT_APP_NAME=$(grep -E '^APP_NAME=' "$ROOT_DIR/.env" | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)
 read -rp "Specify the app name [${DEFAULT_APP_NAME:-MyApp}]: " APP_NAME
 APP_NAME=${APP_NAME:-$DEFAULT_APP_NAME}
 
