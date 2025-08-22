@@ -103,6 +103,26 @@ if ! command -v composer >/dev/null 2>&1; then
     error "No composer found"
 fi
 ok 'composer found'
+
+info "Detecting jq..."
+JQ_WAS_MISSING=false
+if ! command -v jq >/dev/null 2>&1; then
+    info "jq not found, installing it (will be removed after the script is done running)..."
+    JQ_WAS_MISSING=true
+
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y jq
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y jq
+    elif command -v pacman &> /dev/null; then
+        sudo pacman -Sy jq --noconfirm
+    else
+        error "Unsupported package manager. Install jq manually and re-run this script."
+    fi
+    ok 'jq installed'
+else
+    ok 'jq found'
+fi
 # endregion
 
 # region --- app name ---
@@ -584,6 +604,21 @@ echo -e "\n${GREEN}✔ Install completed with success!${RESET}"
 # region --- cleanup ---
 info "Cleanup..."
 rm -rf "$TMP_DIR"
+
+if [ "$JQ_WAS_MISSING" = true ]; then
+    info "removing jq..."
+
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get remove -y jq
+    elif command -v yum &> /dev/null; then
+        sudo yum remove -y jq
+    elif command -v pacman &> /dev/null; then
+        sudo pacman -R jq --noconfirm
+    else
+        warn "Unsupported package manager. Remove jq manually."        
+    fi
+    ok "jq removed"
+fi
 
 read -n 1 -s -r -p "Press any button to cleanup delete this script and its temp files..."
 echo
