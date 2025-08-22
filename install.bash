@@ -117,24 +117,23 @@ else
 fi
 # endregion
 
-# region --- app name/slug ---
+# region --- app name/slug/vendor ---
 DEFAULT_APP_NAME=$(grep -E '^APP_NAME=' "$ROOT_DIR/.env" | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)
 read -rp "Specify the app name [${DEFAULT_APP_NAME:-Laravel}]: " APP_NAME
 APP_NAME=${APP_NAME:-$DEFAULT_APP_NAME}
 set_env_var APP_NAME "${APP_NAME}"
+ok "APP_NAME = $APP_NAME"
 
 # generate slug
-GENERATED_APP_SLUG=$(echo "$APP_NAME" | iconv -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g;s/^_+|_+$//g')
+GENERATED_APP_SLUG=$(basename "$(pwd)" | iconv -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g;s/^_+|_+$//g')
 read -rp "Specify the app slug (used as package name in compose.json and docker image name) [${GENERATED_APP_SLUG}]: " APP_SLUG
 APP_SLUG=${APP_SLUG:-$GENERATED_APP_SLUG}
-
-ok "APP_NAME = $APP_NAME"
 ok "APP_SLUG = $APP_SLUG"
-# endregion
 
-# region --- vendor ---
-read -rp "Specify the vendor name [${GENERATED_APP_SLUG}]: " VENDOR
-VENDOR=${VENDOR:-$GENERATED_APP_SLUG}
+# vendor
+GENERATED_APP_VENDOR=$(echo "${APP_NAME}" | iconv -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g;s/^_+|_+$//g')
+read -rp "Specify the vendor name [${GENERATED_APP_VENDOR}]: " VENDOR
+VENDOR=${VENDOR:-$GENERATED_APP_VENDOR}
 ok "VENDOR = ${VENDOR}"
 # endregion
 
@@ -314,8 +313,6 @@ fi
 
 # region --- composer dependencies ---
 
-ROUTES_CONSOLE_FILE="$ROOT_DIR/routes/console.php"
-
 # region filament
 read -rp "Do you want to use filament? (y/N): " USE_FILAMENT
 if [[ "$USE_FILAMENT" == "y" ]]; then
@@ -429,7 +426,7 @@ if [[ "$USE_BACKUP" == "y" ]]; then
     DB_CONFIG="$ROOT_DIR/config/database.php"
     if [[ "$DB_CONNECTION" == "pgsql" && -f "$DB_CONFIG" ]]; then
         if ! grep -q "'dump'" "$DB_CONFIG"; then
-            sed -i "/'pgsql' => \[/a \ \ \ \ 'dump' => [ 'add_extra_option' => '--format=c', ]," "$DB_CONFIG"
+            sed -i "/'pgsql' => \[/a         'dump' => [ 'add_extra_option' => '--format=c', ]," "$DB_CONFIG"
             ok "Added pgsql dump config to database.php"
         fi
     fi
@@ -441,36 +438,23 @@ if [[ "$USE_BACKUP" == "y" ]]; then
         if [[ "$DB_CONNECTION" == "pgsql" ]]; then
             sed -i "s|'database_dump_file_extension' => .*|'database_dump_file_extension' => 'backup',|" "$BACKUP_CONFIG"
         fi
-        sed -i "s|'disks' => .*|'disks' => ['backups'],|" "$BACKUP_CONFIG"
-        sed -i "s|'to' => .*|'to' => env('BACKUP_NOTIFICATION_EMAIL'),|" "$BACKUP_CONFIG"
+        sed -i "/'disks' => \[/,/\],/c\            'disks' => ['backups']," "$BACKUP_CONFIG"
+        sed -i "/'to' => 'your@example.com',/c\            'to' => env('BACKUP_NOTIFICATION_EMAIL')," "$BACKUP_CONFIG"        
         ok "Patched backup.php configuration"
-    fi
 
-    read -rp "Do you want to use slack notifications for backups? (y/N): " USE_SLACK_BACKUP
-    if [[ "$USE_SLACK_BACKUP" == "y" ]]; then
+        read -rp "Do you want to use slack notifications for backups? (y/N): " USE_SLACK_BACKUP
         composer_require laravel/slack-notification-channel 
-        if [[ -f "$BACKUP_CONFIG" ]]; then
-            # ensure 'notifications' array includes slack
-            if grep -q "'notifications'" "$BACKUP_CONFIG"; then
-                sed -i "s/\['mail'\]/\['mail', 'slack'\]/" "$BACKUP_CONFIG"
-            fi
-
-            # ensure slack config block exists
-            if ! grep -q "'slack'" "$BACKUP_CONFIG"; then
-                sed -i "/'notifications' => \[/a \ \ \ \ \ \ 'slack' => [\n            'webhook_url' => env('BACKUP_SLACK_WEBHOOK'),\n            'channel' => env('BACKUP_SLACK_CHANNEL'),\n        ]," "$BACKUP_CONFIG"
-                ok "Added slack notification config to backup.php"
-            else
-                # patch existing slack block
-                sed -i "s|'webhook_url' => .*|'webhook_url' => env('BACKUP_SLACK_WEBHOOK'),|" "$BACKUP_CONFIG"
-                sed -i "s|'channel' => .*|'channel' => env('BACKUP_SLACK_CHANNEL'),|" "$BACKUP_CONFIG"
-                ok "Updated slack config in backup.php"
-            fi
+        if [[ "$USE_SLACK_BACKUP" == "y" ]]; then
+            sed -i "s/\['mail'\]/\['mail', 'slack'\]/" "$BACKUP_CONFIG"            
+            sed -i "/'webhook_url' => '',/c\            'webhook_url' => env('BACKUP_SLACK_WEBHOOK')," "$BACKUP_CONFIG"
+            sed -i "/'channel' => null,,/c\            'channel' => env('BACKUP_SLACK_CHANNEL')," "$BACKUP_CONFIG"
+            
+            ok "Added slack notification config to backup.php"
+            
+            set_env_var BACKUP_SLACK_WEBHOOK ""
+            set_env_var BACKUP_SLACK_CHANNEL ""
         fi
-
-        set_env_var BACKUP_SLACK_WEBHOOK ""
-        set_env_var BACKUP_SLACK_CHANNEL ""
     fi
-
     ok "installed backup"
 else
    sed -i '/backup:clean/d' "${RESOURCES_DIR}/routes/console.php"
@@ -533,17 +517,12 @@ fi
 
 # region --- jobs after commit ---
 read -rp "Do you want to enforce jobs dispathcing after db commits? (y/N): " USE_JOBS_AFTER_COMMIT
-if [[ "${USE_JOBS_AFTER_COMMIT}" != "y" ]]; then
+if [[ "${USE_JOBS_AFTER_COMMIT}" == "y" ]]; then
     QUEUE_CONFIG="${ROOT_DIR}/config/queue.php"
     if [[ -f "${QUEUE_CONFIG}" ]]; then
         info "Enabling after_commit => true for all queue connections..."
-
-        # Replace any existing after_commit line
+        
         sed -i "s/'after_commit' *=> *false/'after_commit' => true/g" "${QUEUE_CONFIG}"
-
-        # If after_commit is missing in a connection, add it after 'queue' => line
-        grep -A 10 "'queue'" "${QUEUE_CONFIG}" | grep -q "after_commit" || \
-        sed -i "/'queue' *=>/a \ \ \ \ \ \ 'after_commit' => true," "${QUEUE_CONFIG}"
 
         ok "All queue connections now have after_commit => true"
     else
@@ -577,7 +556,7 @@ ok "Settings applied"
 # region --- .env files setup ---
 info "Setting up .env..."
 
-set_env_var COMPOSE_PROJECT_NAME "$APP_SLUG"
+set_env_var COMPOSE_PROJECT_NAME "${VENDOR}_${APP_SLUG}"
 
 set_env_var APP_URL "http://localhost"
 
@@ -593,7 +572,7 @@ set_env_var MAIL_PORT 1025
 # region --- copy resources in project ---
 info "Installing the environment..."
 find "${RESOURCES_DIR}" -type d -empty -delete
-rsync -av --ignore-existing "${TMP_DIR}/" "${ROOT_DIR}/" > /dev/null
+rsync -av --ignore-times "${TMP_DIR}/" "${ROOT_DIR}/" > /dev/null
 echo -e "\n${GREEN}✔ Install completed with success!${RESET}"
 # endregion
 
