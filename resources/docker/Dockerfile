@@ -64,13 +64,12 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Install project dependencies
 RUN composer install --prefer-dist --no-progress --no-scripts --no-dev --optimize-autoloader --no-suggest
 
-# Setup opcache after running composer, so there are no issues with preload.php not being available
-COPY ./docker/configs/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+%DOCKERFILE_PRELOAD_SETUP%
 
 # preparing cache folders so its sure they exists and that they will be owned by www-data
 RUN mkdir -p /var/www/.cache /var/www/.npm /var/www/.config/psysh
-# install Node.js (24) and npm
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
+# install Node.js and npm
+RUN curl -fsSL https://deb.nodesource.com/setup_%NODE_VERSION%.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g npm@latest
 # npm dependencies

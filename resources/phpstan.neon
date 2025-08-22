@@ -1,0 +1,7 @@
+parameters:
+    level: max
+    paths:
+        - app/
+        - config
+        - database
+    checkModelProperties: true
