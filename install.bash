@@ -12,7 +12,7 @@ set_env_var() {
         if [[ -f "${ROOT_DIR}/${ENV_FILE}" ]]; then
             if grep -q "^${KEY}=" "$ENV_FILE"; then
                 sed -i "s|^${KEY}=.*|${KEY}=${VALUE}|" "$ENV_FILE"
-                ok "Modified ${KEY} in $(basename "$ENV_FILE")"
+                info "Modified ${KEY} in $(basename "$ENV_FILE")"
             else
                 echo "" >> "$ENV_FILE"
                 echo "${KEY}=${VALUE}" >> "$ENV_FILE"
@@ -420,7 +420,7 @@ if [[ "$USE_BACKUP" == "y" ]]; then
 
     set_env_var BACKUP_DISK_DRIVER "local"
     set_env_var BACKUP_DISK_ROOT "laravel-backup"
-    set_env_var BACKUP_NOTIFICATION_EMAIL "${AUTHOR_EMAIL:-'test@test.test'}"
+    set_env_var BACKUP_NOTIFICATION_EMAIL "${SUPPORT_EMAIL:-${AUTHOR_EMAIL:-'test@test.test'}}"
 
     # patch database.php for pgsql
     DB_CONFIG="$ROOT_DIR/config/database.php"
