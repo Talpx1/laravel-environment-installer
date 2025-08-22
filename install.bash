@@ -22,55 +22,32 @@ set_env_var() {
     done
 }
 
-install_composer_dependency() {
-    local PKG="$1"
-    local IS_DEV="${2:-false}"
-
+run_in_root_dir(){
     local PREV_PWD
     PREV_PWD=$(pwd)
-
     cd "${ROOT_DIR}"
-    
-    if [[ "$IS_DEV" == "true" ]]; then
-        composer require --dev "${PKG}" --no-interaction
-    else
-        composer require "${PKG}" --no-interaction
-    fi
 
-    info "installed ${PKG} via composer"
+    "$@"
 
     cd "${PREV_PWD}"
 }
+
+composer_require() {
+    run_in_root_dir composer require "$@" --no-interaction
+}
+
+composer_require_dev() {
+    composer_require "$@" --dev
+}
+
 
 artisan() {
-    local COMMAND="$1"
-    local DISCARD_OUTPUT="${2:-false}"
-
-    local PREV_PWD
-    PREV_PWD=$(pwd)
-
-    cd "$ROOT_DIR"
-
-    if [[ "$DISCARD_OUTPUT" == "true" ]]; then
-        php artisan $COMMAND > /dev/null 2>&1 || true
-    else
-        php artisan $COMMAND
-    fi
-
-    cd "${PREV_PWD}"
+    run_in_root_dir php artisan "$@"    
 }
 
-run_composer_script() {
-    local COMMAND="$1"    
 
-    local PREV_PWD
-    PREV_PWD=$(pwd)
-
-    cd "${ROOT_DIR}"
-
-    composer "${COMMAND}"
-
-    cd "${PREV_PWD}"
+composer_run() {
+    run_in_root_dir composer "$@"
 }
 # endregion
 
@@ -329,8 +306,8 @@ ROUTES_CONSOLE_FILE="$ROOT_DIR/routes/console.php"
 # region filament
 read -rp "Do you want to use filament? (y/N): " USE_FILAMENT
 if [[ "$USE_FILAMENT" == "y" ]]; then
-    install_composer_dependency filament/filament
-    artisan "filament:install --panels"
+    composer_require filament/filament
+    artisan filament:install --panels
     ok "installed filament"
 fi
 # endregion
@@ -338,8 +315,7 @@ fi
 # region rector
 read -rp "Do you want to use rector? (y/N): " USE_RECTOR
 if [[ "$USE_RECTOR" == "y" ]]; then
-    install_composer_dependency rector/rector true
-    install_composer_dependency  driftingly/rector-laravel true
+    composer_require_dev rector/rector driftingly/rector-laravel
 
     TMP_COMPOSER=$(mktemp)
     if jq -e '.scripts' "$ROOT_DIR/composer.json" > /dev/null 2>&1; then
@@ -362,9 +338,8 @@ fi
 # region php stan
 read -rp "Do you want to use phpstan (larastan)? (y/N): " USE_PHPSTAN
 if [[ "$USE_PHPSTAN" == "y" ]]; then
-    install_composer_dependency larastan/larastan true 
-    install_composer_dependency phpstan/extension-installer true 
-    install_composer_dependency phpstan/phpstan-deprecation-rules true
+    composer_require_dev phpstan/extension-installer --with-all-dependencies
+    composer_require_dev larastan/larastan phpstan/phpstan-deprecation-rules
     ok "installed php stan"
 else
     rm "$RESOURCES_DIR/phpstan.neon"
@@ -374,10 +349,10 @@ fi
 # region safe php
 read -rp "Do you want to use safe php (thecodingmachine/safe)? (y/N): " USE_SAFEPHP
 if [[ "$USE_SAFEPHP" == "y" ]]; then
-    install_composer_dependency thecodingmachine/safe 
+    composer_require thecodingmachine/safe 
 
     if [[ "$USE_PHPSTAN" == "y" ]]; then
-        install_composer_dependency thecodingmachine/phpstan-safe-rule true 
+        composer_require_dev thecodingmachine/phpstan-safe-rule 
     fi
 
     ok "installed safe php"
@@ -387,7 +362,7 @@ fi
 # region telescope
 read -rp "Do you want to use telescope? (y/N): " USE_TELESCOPE
 if [[ "$USE_TELESCOPE" == "y" ]]; then
-    install_composer_dependency laravel/telescope true 
+    composer_require_dev laravel/telescope 
     artisan telescope:install
 
     PROVIDERS_FILE="$ROOT_DIR/bootstrap/providers.php"
@@ -417,9 +392,9 @@ fi
 # region activity log
 read -rp "Do you want to use activity log (spatie/laravel-activitylog)? (y/N): " USE_ACTIVITYLOG
 if [[ "$USE_ACTIVITYLOG" == "y" ]]; then
-    install_composer_dependency spatie/laravel-activitylog 
-    artisan "vendor:publish --provider=\"Spatie\Activitylog\ActivitylogServiceProvider\" --tag=\"activitylog-migrations\""
-    artisan "vendor:publish --provider=\"Spatie\Activitylog\ActivitylogServiceProvider\" --tag=\"activitylog-config\""
+    composer_require spatie/laravel-activitylog 
+    artisan vendor:publish --provider="Spatie\Activitylog\ActivitylogServiceProvider" --tag="activitylog-migrations"
+    artisan vendor:publish --provider="Spatie\Activitylog\ActivitylogServiceProvider" --tag="activitylog-config"
 
     set_env_var ACTIVITYLOG_ENABLED true
 
@@ -437,8 +412,8 @@ fi
 # region backup
 read -rp "Do you want to use backup (spatie/laravel-backup)? (y/N): " USE_BACKUP
 if [[ "$USE_BACKUP" == "y" ]]; then
-    install_composer_dependency spatie/laravel-backup 
-    artisan "vendor:publish --provider=\"Spatie\Backup\BackupServiceProvider\" --tag=backup-config"
+    composer_require spatie/laravel-backup 
+    artisan vendor:publish --provider="Spatie\Backup\BackupServiceProvider" --tag="backup-config"
 
     if [[ -f "$ROUTES_CONSOLE_FILE" ]]; then
         grep -q "backup:clean" "$ROUTES_CONSOLE_FILE" || echo "\$schedule->command('backup:clean')->dailyAt('01:00');" >> "$ROUTES_CONSOLE_FILE"
@@ -474,7 +449,7 @@ if [[ "$USE_BACKUP" == "y" ]]; then
 
     read -rp "Do you want to use slack notifications for backups? (y/N): " USE_SLACK_BACKUP
     if [[ "$USE_SLACK_BACKUP" == "y" ]]; then
-        install_composer_dependency laravel/slack-notification-channel 
+        composer_require laravel/slack-notification-channel 
         if [[ -f "$BACKUP_CONFIG" ]]; then
             # ensure 'notifications' array includes slack
             if grep -q "'notifications'" "$BACKUP_CONFIG"; then
@@ -504,7 +479,7 @@ fi
 # region opcahe preload
 read -rp "Do you want to use opcache preload (laragear/preload)? (y/N): " USE_PRELOAD
 if [[ "$USE_PRELOAD" == "y" ]]; then
-    install_composer_dependency laragear/preload 
+    composer_require laragear/preload 
     artisan preload:stub
 
     set_env_var PRELOAD_ENABLE "false"
@@ -529,7 +504,7 @@ fi
 # region other dependencies
 COMPOSER_DEPENDENCIES=(lorisleiva/laravel-actions staudenmeir/belongs-to-through staudenmeir/eloquent-has-many-deep)
 for DEPENDENCY in "${COMPOSER_DEPENDENCIES[@]}"; do
-    install_composer_dependency "${DEPENDENCY}" 
+    composer_require "${DEPENDENCY}" 
     ok "${DEPENDENCY} installed"
 done
 # endregion
@@ -619,10 +594,10 @@ echo -e "\n${GREEN}✔ Install completed with success!${RESET}"
 
 # region --- rector and pint ---
 if [[ "$USE_RECTOR" == "y" ]]; then
-    run_composer_script rector
+    composer_run rector
 fi
 
-run_composer_script pint
+composer_run pint
 # endregion
 
 # region --- cleanup ---
