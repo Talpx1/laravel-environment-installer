@@ -280,6 +280,7 @@ if [[ -f "$ROOT_DIR/composer.json" ]]; then
     fi
 
     # scripts
+    TMP_COMPOSER=$(mktemp)
     if jq -e '.scripts' "$ROOT_DIR/composer.json" > /dev/null 2>&1; then
         jq '.scripts["dry-pint"] = ["./vendor/bin/pint --test"] |
             .scripts["pint"] = ["./vendor/bin/pint"]' \
@@ -328,6 +329,7 @@ read -rp "Do you want to use rector? (y/N): " USE_RECTOR
 if [[ "$USE_RECTOR" == "y" ]]; then
     install_composer_dependency "rector/rector driftingly/rector-laravel" true
 
+    TMP_COMPOSER=$(mktemp)
     if jq -e '.scripts' "$ROOT_DIR/composer.json" > /dev/null 2>&1; then
         jq '.scripts["dry-rector"] = ["./vendor/bin/rector --dry-run"] |
             .scripts["rector"] = ["./vendor/bin/rector"]' \
