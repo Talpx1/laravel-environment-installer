@@ -103,16 +103,34 @@ fi
 cd "$SCRIPT_DIR"
 
 # --- .env files ---
-info "Setting up the .env files..."
+info "Setting up the .env ..."
+
 cat "$RESOURCES_DIR/.env.example" >> "$ROOT_DIR/.env"
-if [[ -f "$RESOURCES_DIR/.env.example" ]]; then
+ok "New env vars have been added to .env"
+
+if [[ -f "$ROOT_DIR/.env.example" ]]; then
     cat "$RESOURCES_DIR/.env.example" >> "$ROOT_DIR/.env.example"
     ok "New env vars have been added to your .env.example"
 else
-    warn ".env.example not found"
+    warn ".env.example not found, no vars added."
 fi
-ok "New env vars have been added to your .env"
+
 rm -f "$RESOURCES_DIR/.env.example"
+
+# APP_URL and DB_HOST
+if grep -q '^APP_URL=' "$ROOT_DIR/.env"; then
+    sed -i 's|^APP_URL=.*|APP_URL=http://localhost|' "$ROOT_DIR/.env"
+else
+    echo "APP_URL=http://localhost" >> "$ROOT_DIR/.env"
+fi
+
+if grep -q '^DB_HOST=' "$ROOT_DIR/.env"; then
+    sed -i 's|^DB_HOST=.*|DB_HOST=db|' "$ROOT_DIR/.env"
+else
+    echo "DB_HOST=db" >> "$ROOT_DIR/.env"
+fi
+
+ok "APP_URL and DB_HOST vars modified"
 
 # --- copy resources in project ---
 info "Installing the environment..."
