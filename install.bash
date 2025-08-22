@@ -338,7 +338,8 @@ fi
 # region rector
 read -rp "Do you want to use rector? (y/N): " USE_RECTOR
 if [[ "$USE_RECTOR" == "y" ]]; then
-    install_composer_dependency "rector/rector driftingly/rector-laravel" true
+    install_composer_dependency rector/rector true
+    install_composer_dependency  driftingly/rector-laravel true
 
     TMP_COMPOSER=$(mktemp)
     if jq -e '.scripts' "$ROOT_DIR/composer.json" > /dev/null 2>&1; then
@@ -361,7 +362,9 @@ fi
 # region php stan
 read -rp "Do you want to use phpstan (larastan)? (y/N): " USE_PHPSTAN
 if [[ "$USE_PHPSTAN" == "y" ]]; then
-    install_composer_dependency "larastan/larastan phpstan/extension-installer phpstan/phpstan-deprecation-rules" true
+    install_composer_dependency larastan/larastan true 
+    install_composer_dependency phpstan/extension-installer true 
+    install_composer_dependency phpstan/phpstan-deprecation-rules true
     ok "installed php stan"
 else
     rm "$RESOURCES_DIR/phpstan.neon"
@@ -526,7 +529,7 @@ fi
 # region other dependencies
 COMPOSER_DEPENDENCIES=(lorisleiva/laravel-actions staudenmeir/belongs-to-through staudenmeir/eloquent-has-many-deep)
 for DEPENDENCY in "${COMPOSER_DEPENDENCIES[@]}"; do
-    install_composer_dependency "$DEPENDENCY" 
+    install_composer_dependency "${DEPENDENCY}" 
     ok "${DEPENDENCY} installed"
 done
 # endregion
