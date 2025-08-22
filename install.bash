@@ -299,13 +299,9 @@ fi
 
 # region --- setup AppServiceProvider ---
 APP_SERVICE_PROVIDER="$ROOT_DIR/app/Providers/AppServiceProvider.php"
-if [[ -f "$APP_SERVICE_PROVIDER" ]]; then
-    if ! grep -q "Vite::useAggressivePrefetching();" "$APP_SERVICE_PROVIDER"; then
-        sed -i "/public function boot()/a \        \\\Illuminate\\Support\\Facades\\Vite::useAggressivePrefetching();\n        \\\Illuminate\\Support\\Facades\\Date::use(\\Carbon\\CarbonImmutable::class);\n        \\\Illuminate\\Database\\Eloquent\\Model::shouldBeStrict();\n        \\\Illuminate\\Database\\Eloquent\\Model::unguard();\n        \\\Illuminate\\Database\\Eloquent\\Model::automaticallyEagerLoadRelationships();\n        \\\Illuminate\\Support\\Facades\\URL::forceHttps(\\$this->app->environment(['staging','production']));\n        \\\Illuminate\\Support\\Facades\\DB::prohibitDestructiveCommands(\\$this->app->environment('production'));\n        \\\Illuminate\\Support\\Facades\\Http::preventStrayRequests(\\$this->app->runningUnitTests());" "$APP_SERVICE_PROVIDER"
-        ok "Added recommended setup to AppServiceProvider boot()"
-    else
-        info "AppServiceProvider already contains setup instructions, skipping."
-    fi
+if [[ -f "$APP_SERVICE_PROVIDER" ]]; then    
+    sed -i "/public function boot(){/a \        \Illuminate\Support\Facades\Vite::useAggressivePrefetching();\n        \Illuminate\Support\Facades\Date::use(\Carbon\CarbonImmutable::class);\n        \Illuminate\Database\Eloquent\Model::shouldBeStrict();\n        \Illuminate\Database\Eloquent\Model::unguard();\n        \Illuminate\Database\Eloquent\Model::automaticallyEagerLoadRelationships();\n        \Illuminate\Support\Facades\URL::forceHttps(\$this->app->environment(['staging','production']));\n        \Illuminate\Support\Facades\DB::prohibitDestructiveCommands(\$this->app->environment('production'));\n        \Illuminate\Support\Facades\Http::preventStrayRequests(\$this->app->runningUnitTests());}" "$APP_SERVICE_PROVIDER"
+    ok "Added recommended setup to AppServiceProvider boot()"
 else
     warn "AppServiceProvider.php not found, skipping boot() setup."
 fi
