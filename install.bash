@@ -32,9 +32,9 @@ install_composer_dependency() {
     cd "${ROOT_DIR}"
     
     if [[ "$IS_DEV" == "true" ]]; then
-        composer require --dev "$PKG" --no-interaction > /dev/null 2>&1
+        composer require --dev "${PKG}" --no-interaction
     else
-        composer require "$PKG" --no-interaction > /dev/null 2>&1
+        composer require "${PKG}" --no-interaction
     fi
 
     info "installed ${PKG} via composer"
@@ -44,16 +44,31 @@ install_composer_dependency() {
 
 artisan() {
     local COMMAND="$1"
-    local DISCARD_OUTPUT=${2:-true}
+    local DISCARD_OUTPUT="${2:-false}"
 
     local PREV_PWD
     PREV_PWD=$(pwd)
+
+    cd "$ROOT_DIR"
 
     if [[ "$DISCARD_OUTPUT" == "true" ]]; then
         php artisan $COMMAND > /dev/null 2>&1 || true
     else
         php artisan $COMMAND
     fi
+
+    cd "${PREV_PWD}"
+}
+
+run_composer_script() {
+    local COMMAND="$1"    
+
+    local PREV_PWD
+    PREV_PWD=$(pwd)
+
+    cd "${ROOT_DIR}"
+
+    composer "${COMMAND}"
 
     cd "${PREV_PWD}"
 }
@@ -315,7 +330,7 @@ ROUTES_CONSOLE_FILE="$ROOT_DIR/routes/console.php"
 read -rp "Do you want to use filament? (y/N): " USE_FILAMENT
 if [[ "$USE_FILAMENT" == "y" ]]; then
     install_composer_dependency filament/filament
-    artisan "filament:install --panels" false
+    artisan "filament:install --panels"
     ok "installed filament"
 fi
 # endregion
@@ -600,10 +615,11 @@ echo -e "\n${GREEN}✔ Install completed with success!${RESET}"
 # endregion
 
 # region --- rector and pint ---
-cd "$ROOT_DIR"
-composer rector 2>&1 || true
-composer pint 2>&1 || true
-cd "$SCRIPT_DIR"
+if [[ "$USE_RECTOR" == "y" ]]; then
+    run_composer_script rector
+fi
+
+run_composer_script pint
 # endregion
 
 # region --- cleanup ---
