@@ -420,7 +420,7 @@ if [[ "$USE_BACKUP" == "y" ]]; then
 
     set_env_var BACKUP_DISK_DRIVER "local"
     set_env_var BACKUP_DISK_ROOT "laravel-backup"
-    set_env_var BACKUP_NOTIFICATION_EMAIL ""
+    set_env_var BACKUP_NOTIFICATION_EMAIL "${AUTHOR_EMAIL:-'test@test.test'}"
 
     # patch database.php for pgsql
     DB_CONFIG="$ROOT_DIR/config/database.php"
@@ -451,8 +451,8 @@ if [[ "$USE_BACKUP" == "y" ]]; then
             
             ok "Added slack notification config to backup.php"
             
-            set_env_var BACKUP_SLACK_WEBHOOK ""
-            set_env_var BACKUP_SLACK_CHANNEL ""
+            set_env_var BACKUP_SLACK_WEBHOOK "https://hooks.slack.com/services/TEST/TEST/TEST"
+            set_env_var BACKUP_SLACK_CHANNEL "#backups"
         fi
     fi
     ok "installed backup"
@@ -470,15 +470,15 @@ if [[ "$USE_PRELOAD" == "y" ]]; then
     artisan preload:stub
 
     set_env_var PRELOAD_ENABLE "false"
-    set_env_var PHP_OPCACHE_ENABLED "0                   # 1=enabled 0=disabled"
-    set_env_var PHP_OPCACHE_CLI_ENABLED "0               # 1=enabled 0=disabled"
-    set_env_var PHP_OPCACHE_MEMORY_CONSUMPTION "128      # 128-512 MB"
-    set_env_var PHP_OPCACHE_MAX_ACCELERATED_FILES "10000 # 10000-50000"
-    set_env_var PHP_OPCACHE_MAX_WASTED_PERCENTAGE "15    # 5-10"
-    set_env_var PHP_OPCACHE_VALIDATE_TIMESTAMPS "1       # 1=enabled 0=disabled"
-    set_env_var PHP_OPCACHE_JIT_BUFFER_SIZE "0           # 0=disabled"
+    set_env_var PHP_OPCACHE_ENABLED "0"                   # 1=enabled 0=disabled"
+    set_env_var PHP_OPCACHE_CLI_ENABLED "0"               # 1=enabled 0=disabled"
+    set_env_var PHP_OPCACHE_MEMORY_CONSUMPTION "128"      # 128-512 MB"
+    set_env_var PHP_OPCACHE_MAX_ACCELERATED_FILES "10000" # 10000-50000"
+    set_env_var PHP_OPCACHE_MAX_WASTED_PERCENTAGE "15"    # 5-10"
+    set_env_var PHP_OPCACHE_VALIDATE_TIMESTAMPS "1"       # 1=enabled 0=disabled"
+    set_env_var PHP_OPCACHE_JIT_BUFFER_SIZE "0"           # 0=disabled"
     set_env_var PHP_OPCACHE_JIT_MODE "disable"
-    set_env_var PHP_OPCACHE_REVALIDATE_FREQ "0           # time in sec to check check for cached-file changes"
+    set_env_var PHP_OPCACHE_REVALIDATE_FREQ "0"           # time in sec to check check for cached-file changes"
 
     DOCKERFILE_PRELOAD_SETUP=$'# Setup opcache after running composer, so there are no issues with preload.php not being available\nCOPY ./docker/configs/opcache.ini /usr/local/etc/php/conf.d/opcache.ini'
 
