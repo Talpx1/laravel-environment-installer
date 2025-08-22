@@ -599,6 +599,13 @@ rsync -av --ignore-existing "$TMP_DIR/" "$ROOT_DIR/" > /dev/null
 echo -e "\n${GREEN}✔ Install completed with success!${RESET}"
 # endregion
 
+# region --- rector and pint ---
+cd "$ROOT_DIR"
+composer rector 2>&1 || true
+composer pint 2>&1 || true
+cd "$SCRIPT_DIR"
+# endregion
+
 # region --- cleanup ---
 info "Cleanup..."
 rm -rf "$TMP_DIR"
