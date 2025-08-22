@@ -134,7 +134,8 @@ ok "APP_SLUG = $APP_SLUG"
 
 # region --- vendor ---
 read -rp "Specify the vendor name [${GENERATED_APP_SLUG}]: " VENDOR
-ok "VENDOR = ${VENDOR:-$GENERATED_APP_SLUG}"
+VENDOR=${VENDOR:-$GENERATED_APP_SLUG}
+ok "VENDOR = ${VENDOR}"
 # endregion
 
 # region --- scheduler timezone ---
