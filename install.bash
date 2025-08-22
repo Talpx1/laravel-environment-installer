@@ -77,6 +77,12 @@ if [[ ! -f "$ROOT_DIR/artisan" ]]; then
 fi
 ok 'artisan found'
 
+info "Detecting composer..."
+if ! command -v composer >/dev/null 2>&1; then
+    error "No composer found"
+fi
+ok 'composer found'
+
 info "Detecting .env..."
 if [[ ! -f "$ROOT_DIR/.env" ]]; then
     error "No .env found in $ROOT_DIR"
@@ -89,12 +95,6 @@ if [[ ! -f "$ROOT_DIR/.env.example" ]]; then
 else
     ok '.env.example found'
 fi
-
-info "Detecting composer..."
-if ! command -v composer >/dev/null 2>&1; then
-    error "No composer found"
-fi
-ok 'composer found'
 
 info "Detecting jq..."
 JQ_WAS_MISSING=false
@@ -117,18 +117,61 @@ else
 fi
 # endregion
 
-# region --- app name ---
+# region --- app name/slug ---
 DEFAULT_APP_NAME=$(grep -E '^APP_NAME=' "$ROOT_DIR/.env" | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)
-read -rp "Specify the app name [${DEFAULT_APP_NAME:-MyApp}]: " APP_NAME
+read -rp "Specify the app name [${DEFAULT_APP_NAME:-Laravel}]: " APP_NAME
 APP_NAME=${APP_NAME:-$DEFAULT_APP_NAME}
+set_env_var APP_NAME "${APP_NAME}"
 
 # generate slug
 GENERATED_APP_SLUG=$(echo "$APP_NAME" | iconv -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g;s/^_+|_+$//g')
-read -rp "Specify the app slug [${GENERATED_APP_SLUG}]: " APP_SLUG
+read -rp "Specify the app slug (used as package name in compose.json and docker image name) [${GENERATED_APP_SLUG}]: " APP_SLUG
 APP_SLUG=${APP_SLUG:-$GENERATED_APP_SLUG}
 
 ok "APP_NAME = $APP_NAME"
 ok "APP_SLUG = $APP_SLUG"
+# endregion
+
+# region --- vendor ---
+read -rp "Specify the vendor name [${GENERATED_APP_SLUG}]: " VENDOR
+ok "VENDOR = ${VENDOR:-$GENERATED_APP_SLUG}"
+# endregion
+
+# region --- scheduler timezone ---
+read -rp "Specify app timezone [UTC]\n(this won't modify the app.timezone config, that should stay UTC, but will set a SCHEDULER_TIMEZONE env var to ensure that the scheduled commands are run at the right time): " SCHEDULER_TIMEZONE
+set_env_var SCHEDULER_TIMEZONE "${SCHEDULER_TIMEZONE}"
+APP_CONFIG="${ROOT_DIR}/config/app.php"
+sed -i "/'timezone' => 'UTC',\n/a \    'scheduler_timezone' => env('SCHEDULER_TIMEZONE', 'UTC'),\n" "$APP_CONFIG"
+# endregion
+
+# region --- PHP version ---
+read -rp "Specify the php version you wish to use: " PHP_VERSION
+ok "PHP version: $PHP_VERSION"
+
+if [[ -f "$ROOT_DIR/composer.json" ]]; then
+    REQUIRED_PHP=$(jq -r '.require.php // empty' "$ROOT_DIR/composer.json")
+
+    if [[ -n "$REQUIRED_PHP" ]]; then
+        # Remove leading ^ or >= or ~ constraints
+        REQUIRED_PHP_CLEAN=$(echo "$REQUIRED_PHP" | sed -E 's/^[^0-9]*//;s/[^0-9.].*//')
+
+        # Compare versions: if PHP_VERSION < REQUIRED_PHP_CLEAN, warn and exit
+        if [[ "$(printf '%s\n' "$PHP_VERSION" "$REQUIRED_PHP_CLEAN" | sort -V | head -n1)" != "$REQUIRED_PHP_CLEAN" ]]; then
+            error "The PHP version you specified ($PHP_VERSION) is lower than the one required in composer.json ($REQUIRED_PHP)."
+        else
+            ok "PHP version is compatible with composer.json requirement ($REQUIRED_PHP)."
+        fi
+    else
+        warn "No PHP requirement found in composer.json."
+    fi
+else
+    warn "composer.json not found in project root, skipping PHP version check."
+fi
+# endregion
+
+# region --- Node version ---
+read -rp "Specify the node version you wish to use: " NODE_VERSION
+ok "Node version: $NODE_VERSION"
 # endregion
 
 # region --- DB setup ---
@@ -167,41 +210,6 @@ esac
 
 ok "PHP PDO ext: $PHP_PDO_EXT"
 ok "apt packages for DB: $APT_DB_PACKAGES"
-# endregion
-
-# region --- PHP version ---
-read -rp "Specify the php version you wish to use: " PHP_VERSION
-ok "PHP version: $PHP_VERSION"
-
-if [[ -f "$ROOT_DIR/composer.json" ]]; then
-    REQUIRED_PHP=$(jq -r '.require.php // empty' "$ROOT_DIR/composer.json")
-
-    if [[ -n "$REQUIRED_PHP" ]]; then
-        # Remove leading ^ or >= or ~ constraints
-        REQUIRED_PHP_CLEAN=$(echo "$REQUIRED_PHP" | sed -E 's/^[^0-9]*//;s/[^0-9.].*//')
-
-        # Compare versions: if PHP_VERSION < REQUIRED_PHP_CLEAN, warn and exit
-        if [[ "$(printf '%s\n' "$PHP_VERSION" "$REQUIRED_PHP_CLEAN" | sort -V | head -n1)" != "$REQUIRED_PHP_CLEAN" ]]; then
-            error "The PHP version you specified ($PHP_VERSION) is lower than the one required in composer.json ($REQUIRED_PHP)."
-        else
-            ok "PHP version is compatible with composer.json requirement ($REQUIRED_PHP)."
-        fi
-    else
-        warn "No PHP requirement found in composer.json."
-    fi
-else
-    warn "composer.json not found in project root, skipping PHP version check."
-fi
-# endregion
-
-# region --- Node version ---
-read -rp "Specify the node version you wish to use: " NODE_VERSION
-ok "Node version: $NODE_VERSION"
-# endregion
-
-# region --- vendor ---
-read -rp "Specify the vendor name: " VENDOR
-ok "VENDOR = $VENDOR"
 # endregion
 
 # region --- update package.json ---
@@ -292,7 +300,7 @@ fi
 # region --- setup AppServiceProvider ---
 APP_SERVICE_PROVIDER="$ROOT_DIR/app/Providers/AppServiceProvider.php"
 if [[ -f "$APP_SERVICE_PROVIDER" ]]; then    
-    sed -i "/public function boot(){/a \        \Illuminate\Support\Facades\Vite::useAggressivePrefetching();\n        \Illuminate\Support\Facades\Date::use(\Carbon\CarbonImmutable::class);\n        \Illuminate\Database\Eloquent\Model::shouldBeStrict();\n        \Illuminate\Database\Eloquent\Model::unguard();\n        \Illuminate\Database\Eloquent\Model::automaticallyEagerLoadRelationships();\n        \Illuminate\Support\Facades\URL::forceHttps(\$this->app->environment(['staging','production']));\n        \Illuminate\Support\Facades\DB::prohibitDestructiveCommands(\$this->app->environment('production'));\n        \Illuminate\Support\Facades\Http::preventStrayRequests(\$this->app->runningUnitTests());}" "$APP_SERVICE_PROVIDER"
+    sed -i "/public function boot(): void\n    {/a \        \Illuminate\Support\Facades\Vite::useAggressivePrefetching();\n        \Illuminate\Support\Facades\Date::use(\Carbon\CarbonImmutable::class);\n        \Illuminate\Database\Eloquent\Model::shouldBeStrict();\n        \Illuminate\Database\Eloquent\Model::unguard();\n        \Illuminate\Database\Eloquent\Model::automaticallyEagerLoadRelationships();\n        \Illuminate\Support\Facades\URL::forceHttps(\$this->app->environment(['staging','production']));\n        \Illuminate\Support\Facades\DB::prohibitDestructiveCommands(\$this->app->environment('production'));\n        \Illuminate\Support\Facades\Http::preventStrayRequests(\$this->app->runningUnitTests());" "$APP_SERVICE_PROVIDER"
     ok "Added recommended setup to AppServiceProvider boot()"
 else
     warn "AppServiceProvider.php not found, skipping boot() setup."
@@ -372,20 +380,17 @@ if [[ "$USE_TELESCOPE" == "y" ]]; then
     fi
         
     if [[ -f "$APP_SERVICE_PROVIDER" ]] && ! grep -q "TelescopeServiceProvider" "$APP_SERVICE_PROVIDER"; then
-        sed -i "/public function register()/a \        if (\$this->app->environment('local')) {\n            \$this->app->register(\\Laravel\\Telescope\\TelescopeServiceProvider::class);\n        }" "$APP_SERVICE_PROVIDER"
+        sed -i "/public function register(): void\n    {/a \        if (\$this->app->environment('local')) {\n            \$this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);\n            \$this->app->register(TelescopeServiceProvider::class);\n        }" "$APP_SERVICE_PROVIDER"
         ok "Registered Telescope in AppServiceProvider register()"
     fi
 
     jq '.extra.laravel["dont-discover"] += ["laravel/telescope"]' "$ROOT_DIR/composer.json" > "$ROOT_DIR/composer.tmp.json" && mv "$ROOT_DIR/composer.tmp.json" "$ROOT_DIR/composer.json"
 
     set_env_var TELESCOPE_ENABLED true
-    
-    if [[ -f "$ROUTES_CONSOLE_FILE" ]] && ! grep -q "telescope:prune" "$ROUTES_CONSOLE_FILE"; then
-        echo "\$schedule->command('telescope:prune')->dailyAt('23:00');" >> "$ROUTES_CONSOLE_FILE"
-        ok "Added telescope:prune schedule to console.php"
-    fi
 
     ok "installed telescope"
+else
+    sed -i '/telescope:prune/d' "${RESOURCES_DIR}/routes/console.php"
 fi
 # endregion
 
@@ -398,14 +403,10 @@ if [[ "$USE_ACTIVITYLOG" == "y" ]]; then
 
     set_env_var ACTIVITYLOG_ENABLED true
 
-    if [[ -f "$ROUTES_CONSOLE_FILE" ]] && ! grep -q "activitylog:clean" "$ROUTES_CONSOLE_FILE"; then
-        echo "\$schedule->command('activitylog:clean --days=30')->dailyAt('00:00');" >> "$ROUTES_CONSOLE_FILE"
-        ok "Added activitylog:clean schedule to console.php"
-    fi
-
     ok "installed activity log"
 else
-    rm "$RESOURCES_DIR/app/models/Concerns/LogsAllDirtyChanges.php"
+    sed -i '/activitylog:clean/d' "${RESOURCES_DIR}/routes/console.php"
+    rm "${RESOURCES_DIR}/app/models/Concerns/LogsAllDirtyChanges.php"
 fi
 # endregion
 
@@ -414,13 +415,6 @@ read -rp "Do you want to use backup (spatie/laravel-backup)? (y/N): " USE_BACKUP
 if [[ "$USE_BACKUP" == "y" ]]; then
     composer_require spatie/laravel-backup 
     artisan vendor:publish --provider="Spatie\Backup\BackupServiceProvider" --tag="backup-config"
-
-    if [[ -f "$ROUTES_CONSOLE_FILE" ]]; then
-        grep -q "backup:clean" "$ROUTES_CONSOLE_FILE" || echo "\$schedule->command('backup:clean')->dailyAt('01:00');" >> "$ROUTES_CONSOLE_FILE"
-        grep -q "backup:run" "$ROUTES_CONSOLE_FILE" || echo "\$schedule->command('backup:run')->dailyAt('22:00');" >> "$ROUTES_CONSOLE_FILE"
-        grep -q "backup:monitor" "$ROUTES_CONSOLE_FILE" || echo "\$schedule->command('backup:monitor')->dailyAt('03:00');" >> "$ROUTES_CONSOLE_FILE"
-        ok "Added backup schedules to console.php"
-    fi
 
     set_env_var BACKUP_DISK_DRIVER "local"
     set_env_var BACKUP_DISK_ROOT "laravel-backup"
@@ -473,6 +467,10 @@ if [[ "$USE_BACKUP" == "y" ]]; then
     fi
 
     ok "installed backup"
+else
+   sed -i '/backup:clean/d' "${RESOURCES_DIR}/routes/console.php"
+   sed -i '/backup:run/d' "${RESOURCES_DIR}/routes/console.php"
+   sed -i '/backup:monitor/d' "${RESOURCES_DIR}/routes/console.php"        
 fi
 # endregion
 
@@ -497,6 +495,7 @@ if [[ "$USE_PRELOAD" == "y" ]]; then
 
     ok "installed preload"    
 else
+    DOCKERFILE_PRELOAD_SETUP=''
     rm "$RESOURCES_DIR/docker/opcache.ini"
 fi
 # endregion
@@ -513,33 +512,33 @@ done
 
 # region --- pint config ---
 read -rp "Do you want to use custom pint config? (y/N): " USE_CUSTOM_PINT_CONFIG
-if [[ "$USE_CUSTOM_PINT_CONFIG" != "y" ]]; then
-    rm "$RESOURCES_DIR/pint.json"
+if [[ "${USE_CUSTOM_PINT_CONFIG}" != "y" ]]; then
+    rm "${RESOURCES_DIR}/pint.json"
 fi
 # endregion
 
 # region --- phpunit config ---
 read -rp "Do you want to use custom phpunit config? (y/N): " USE_CUSTOM_PHPUNIT_CONFIG
-if [[ "$USE_CUSTOM_PHPUNIT_CONFIG" == "y" ]]; then
-    rm "$ROOT_DIR/phpunit.xml"
+if [[ "${USE_CUSTOM_PHPUNIT_CONFIG}" == "y" ]]; then
+    rm "${ROOT_DIR}/phpunit.xml"
 else
-    rm "$RESOURCES_DIR/phpunit.xml"
+    rm "${RESOURCES_DIR}/phpunit.xml"
 fi
 # endregion
 
-# region --- phpunit config ---
+# region --- jobs after commit ---
 read -rp "Do you want to enforce jobs dispathcing after db commits? (y/N): " USE_JOBS_AFTER_COMMIT
-if [[ "$USE_JOBS_AFTER_COMMIT" != "y" ]]; then
-    QUEUE_CONFIG="$ROOT_DIR/config/queue.php"
-    if [[ -f "$QUEUE_CONFIG" ]]; then
+if [[ "${USE_JOBS_AFTER_COMMIT}" != "y" ]]; then
+    QUEUE_CONFIG="${ROOT_DIR}/config/queue.php"
+    if [[ -f "${QUEUE_CONFIG}" ]]; then
         info "Enabling after_commit => true for all queue connections..."
 
         # Replace any existing after_commit line
-        sed -i "s/'after_commit' *=> *false/'after_commit' => true/g" "$QUEUE_CONFIG"
+        sed -i "s/'after_commit' *=> *false/'after_commit' => true/g" "${QUEUE_CONFIG}"
 
         # If after_commit is missing in a connection, add it after 'queue' => line
-        grep -A 10 "'queue'" "$QUEUE_CONFIG" | grep -q "after_commit" || \
-        sed -i "/'queue' *=>/a \ \ \ \ \ \ 'after_commit' => true," "$QUEUE_CONFIG"
+        grep -A 10 "'queue'" "${QUEUE_CONFIG}" | grep -q "after_commit" || \
+        sed -i "/'queue' *=>/a \ \ \ \ \ \ 'after_commit' => true," "${QUEUE_CONFIG}"
 
         ok "All queue connections now have after_commit => true"
     else
@@ -588,12 +587,15 @@ set_env_var MAIL_PORT 1025
 
 # region --- copy resources in project ---
 info "Installing the environment..."
-rsync -av --ignore-existing "$TMP_DIR/" "$ROOT_DIR/" > /dev/null
+find "${RESOURCES_DIR}" -type d -empty -delete
+rsync -av --ignore-existing "${TMP_DIR}/" "${ROOT_DIR}/" > /dev/null
 echo -e "\n${GREEN}✔ Install completed with success!${RESET}"
 # endregion
 
-# region --- rector and pint ---
-if [[ "$USE_RECTOR" == "y" ]]; then
+# region --- update/lint/format/refator/... ---
+composer_run update
+
+if [[ "${USE_RECTOR}" == "y" ]]; then
     composer_run rector
 fi
 
@@ -602,9 +604,9 @@ composer_run pint
 
 # region --- cleanup ---
 info "Cleanup..."
-rm -rf "$TMP_DIR"
+rm -rf "${TMP_DIR}"
 
-if [ "$JQ_WAS_MISSING" = true ]; then
+if [ "${JQ_WAS_MISSING}" = true ]; then
     info "removing jq..."
 
     if command -v apt-get &> /dev/null; then
@@ -621,5 +623,5 @@ fi
 
 read -n 1 -s -r -p "Press any button to cleanup delete this script and its temp files..."
 echo
-rm -rf "$SCRIPT_DIR"
+rm -rf "${SCRIPT_DIR}"
 # endregion
