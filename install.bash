@@ -174,7 +174,7 @@ SCHEDULER_TIMEZONE=$(ask "Scheduler timezone" "UTC")
 set_env_var SCHEDULER_TIMEZONE "${SCHEDULER_TIMEZONE}"
 
 APP_CONFIG="${ROOT_DIR}/config/app.php"
-sed -i "/'timezone' => 'UTC',\n/a \    'scheduler_timezone' => env('SCHEDULER_TIMEZONE', 'UTC'),\n" "$APP_CONFIG"
+sed -i "/'timezone' => 'UTC',/a \    'scheduler_timezone' => env('SCHEDULER_TIMEZONE', 'UTC')," "$APP_CONFIG"
 # endregion
 
 # region --- PHP version ---
