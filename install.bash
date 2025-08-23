@@ -16,7 +16,9 @@ read_env_var() {
     local FILE="${2:-"${ROOT_DIR}/.env"}"
 
     if [[ -f "$FILE" ]]; then        
-        grep -qE "^${VAR_NAME}=" "$FILE" | head -n1 | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/^"\(.*\)"$/\1/'
+        grep -m1 -E "^${VAR_NAME}=" "$FILE" | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/^"\(.*\)"$/\1/'
+    else
+        warn "Unable to read env var ${VAR_NAME} from file ${FILE}, as the file has not been found."
     fi
 }
 
@@ -148,7 +150,7 @@ fi
 
 # region --- app name/slug/vendor ---
 DEFAULT_APP_NAME=$(read_env_var "APP_NAME")
-APP_NAME=$(ask "Specify the app name" "${DEFAULT_APP_NAME:-Laravel}") 
+APP_NAME=$(ask "Specify the app name" "${DEFAULT_APP_NAME:-"Laravel"}") 
 set_env_var APP_NAME "${APP_NAME}"
 ok "APP_NAME = $APP_NAME"
 
