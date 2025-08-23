@@ -13,7 +13,7 @@ RESOURCES_DIR="$SCRIPT_DIR/resources"
 #region --- utils ---
 read_env() {
     local VAR_NAME="$1"
-    local FILE="$2"
+    local FILE="${2:-"${ROOT_DIR}/.env"}"
 
     if [[ -z "${FILE}" ]]; then
         FILE="${ROOT_DIR}/.env"
@@ -72,7 +72,7 @@ slugify() {
 
 ask() {
     local PROMPT="$1"
-    local DEFAULT="$2"
+    local DEFAULT="${2:-}"
 
     if [[ -z "${DEFAULT}" ]]; then
         PROMPT="${PROMPT} [${DEFAULT}]"
