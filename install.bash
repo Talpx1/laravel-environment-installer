@@ -26,7 +26,10 @@ set_env_var() {
 
     for ENV_FILE in "$ROOT_DIR/.env" "$ROOT_DIR/.env.example"; do
         if [[ -f "${ENV_FILE}" ]]; then
-            if [[ -n "$(read_env "${KEY}" "$ENV_FILE")" ]]; then                
+            local CURRENT
+            CURRENT=$(read_env "$KEY" "$ENV_FILE")
+
+            if [[ -n "$CURRENT" ]]; then                
                 local ESCAPED
                 ESCAPED=$(printf '%s' "$VALUE" | sed 's/[&/\]/\\&/g')
                 sed -i "s|^${KEY}=.*|${KEY}=\"${ESCAPED}\"|" "$ENV_FILE"
