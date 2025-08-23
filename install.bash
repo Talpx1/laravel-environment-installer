@@ -571,14 +571,17 @@ shopt -s dotglob
 cp -r "$RESOURCES_DIR/"* "$TMP_DIR/"
 shopt -u dotglob
 
-# Find all placeholders like %VAR%
 PLACEHOLDERS=$(grep -rho "%[A-Z0-9_]\+%" "$TMP_DIR" | sort -u | tr -d '%')
 
 for VAR in $PLACEHOLDERS; do
     if [[ -n "${!VAR-}" ]]; then
-        VALUE="${!VAR}"        
-        ESCAPED_VALUE=$(printf '%s' "$VALUE" | perl -pe 's/([\\\$\@])/\\$1/g')        
-        find "$TMP_DIR" -type f -exec perl -0777 -i -pe "s/%$VAR%/$ESCAPED_VALUE/g" {} +
+            VALUE="${!VAR}"
+
+            find "$DIR" -type f -exec perl -0777 -i -pe '
+                my $var = shift;
+                my $val = shift;
+                s/\Q%$var%\E/$val/g;
+            ' _ "$VAR" "$VALUE" {} +
     else
         warn "No value found for placeholder $VAR, leaving as is. This should not happen, please report issue on GitHub!"
     fi
