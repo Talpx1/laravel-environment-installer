@@ -16,7 +16,7 @@ read_env() {
     local FILE="${2:-"${ROOT_DIR}/.env"}"
 
     if [[ -f "$FILE" ]]; then        
-        grep -E "^${VAR_NAME}=" "$FILE" | head -n1 | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/^"\(.*\)"$/\1/'
+        grep -qE "^${VAR_NAME}=" "$FILE" | head -n1 | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/^"\(.*\)"$/\1/'
     fi
 }
 
