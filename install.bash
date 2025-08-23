@@ -5,8 +5,8 @@
 set -euo pipefail
 
 # region --- paths ---
-SCRIPT_DIR="${ROOT_DIR}/laravel-environment-installer"
 ROOT_DIR="$(pwd)"
+SCRIPT_DIR="${ROOT_DIR}/laravel-environment-installer"
 RESOURCES_DIR="$SCRIPT_DIR/resources"
 # endregion
 
