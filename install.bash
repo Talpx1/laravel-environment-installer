@@ -74,7 +74,7 @@ ask() {
     read -rp "${PROMPT}: " INPUT
     INPUT=${INPUT:-$DEFAULT}
 
-    echo "${INPUT}" 
+    trim "${INPUT}"
 }
 
 trim() {
@@ -144,7 +144,7 @@ fi
 # endregion
 
 # region --- app name/slug/vendor ---
-DEFAULT_APP_NAME=$(trim "$(read_env "APP_NAME")")
+DEFAULT_APP_NAME=$(read_env "APP_NAME")
 APP_NAME=$(ask "Specify the app name" "${DEFAULT_APP_NAME:-Laravel}") 
 set_env_var APP_NAME "${APP_NAME}"
 ok "APP_NAME = $APP_NAME"
