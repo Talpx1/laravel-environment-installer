@@ -3,14 +3,32 @@
 # Special thanks to ChatGPT
 
 set -euo pipefail
+
+# region --- paths ---
+SCRIPT_DIR="${ROOT_DIR}/laravel-environment-installer"
+ROOT_DIR="$(pwd)"
+RESOURCES_DIR="$SCRIPT_DIR/resources"
+# endregion
+
 #region --- utils ---
+read_env() {
+    local VAR_NAME="$1"
+    local FILE="$2"
+
+    if [[ -z "${FILE}" ]]; then
+        FILE="${ROOT_DIR}/.env"
+    fi
+
+    return "$(grep -q "^${VAR_NAME}=" "${FILE}")"
+}
+
 set_env_var() {
     local KEY="$1"
     local VALUE="$2"
 
     for ENV_FILE in "$ROOT_DIR/.env" "$ROOT_DIR/.env.example"; do
-        if [[ -f "${ROOT_DIR}/${ENV_FILE}" ]]; then
-            if grep -q "^${KEY}=" "$ENV_FILE"; then
+        if [[ -f "${ENV_FILE}" ]]; then
+            if read_env "${KEY}" "$ENV_FILE"; then
                 sed -i "s|^${KEY}=.*|${KEY}=${VALUE}|" "$ENV_FILE"
                 info "Modified ${KEY} in $(basename "$ENV_FILE")"
             else
@@ -40,14 +58,35 @@ composer_require_dev() {
     composer_require "$@" --dev
 }
 
-
 artisan() {
     run_in_root_dir php artisan "$@"    
 }
 
-
 composer_run() {
     run_in_root_dir composer "$@"
+}
+
+slugify() {
+    return "$(echo "$1" | iconv -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g;s/^_+|_+$//g')"
+}
+
+ask() {
+    local PROMPT="$1"
+    local DEFAULT="$2"
+
+    if [[ -z "${DEFAULT}" ]]; then
+        PROMPT="${PROMPT} [${DEFAULT}]"
+    fi
+
+    local INPUT
+    read -rp "${PROMPT}: " INPUT
+    INPUT=${INPUT:-$DEFAULT}
+
+    return "${INPUT}" 
+}
+
+trim() {
+    return "$(echo "$1" | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)"
 }
 # endregion
 
@@ -62,12 +101,6 @@ info()  { echo -e "${CYAN}[INFO]${RESET} $*"; }
 ok()    { echo -e "${GREEN}[OK]${RESET} $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${RESET} $*"; }
 error() { echo -e "${RED}[ERROR]${RESET} $*"; exit 1; }
-# endregion
-
-# region --- paths ---
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-RESOURCES_DIR="$SCRIPT_DIR/resources"
 # endregion
 
 # region --- requirements detection ---
@@ -118,38 +151,36 @@ fi
 # endregion
 
 # region --- app name/slug/vendor ---
-DEFAULT_APP_NAME=$(grep -E '^APP_NAME=' "$ROOT_DIR/.env" | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)
-read -rp "Specify the app name [${DEFAULT_APP_NAME:-Laravel}]: " APP_NAME
-APP_NAME=${APP_NAME:-$DEFAULT_APP_NAME}
+DEFAULT_APP_NAME=$(trim "$(read_env "APP_NAME")")
+APP_NAME=$(ask "Specify the app name" "${DEFAULT_APP_NAME:-Laravel}") 
 set_env_var APP_NAME "${APP_NAME}"
 ok "APP_NAME = $APP_NAME"
 
 # generate slug
-GENERATED_APP_SLUG=$(basename "$(pwd)" | iconv -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g;s/^_+|_+$//g')
-read -rp "Specify the app slug (used as package name in compose.json and docker image name) [${GENERATED_APP_SLUG}]: " APP_SLUG
-APP_SLUG=${APP_SLUG:-$GENERATED_APP_SLUG}
+GENERATED_APP_SLUG=$(slugify "$(basename "${ROOT_DIR}")")
+APP_SLUG=$(ask "Specify the app slug (used as package name in compose.json and docker image name)", "${GENERATED_APP_SLUG}")
 ok "APP_SLUG = $APP_SLUG"
 
 # vendor
-GENERATED_APP_VENDOR=$(echo "${APP_NAME}" | iconv -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g;s/^_+|_+$//g')
-read -rp "Specify the vendor name [${GENERATED_APP_VENDOR}]: " VENDOR
-VENDOR=${VENDOR:-$GENERATED_APP_VENDOR}
+GENERATED_APP_VENDOR=$(slugify "${APP_NAME}")
+VENDOR=$(ask "Specify the vendor name" "${GENERATED_APP_VENDOR}") 
 ok "VENDOR = ${VENDOR}"
 # endregion
 
 # region --- scheduler timezone ---
-echo -e "Specify app timezone"
+echo -e "Specify scheduler timezone"
 echo -e "this won't modify the app.timezone config, that should stay UTC"
 echo -e "but will set a SCHEDULER_TIMEZONE env var to ensure that the" 
 echo -e "scheduled commands are run at the right time"
-read -rp "[UTC]: " SCHEDULER_TIMEZONE
+SCHEDULER_TIMEZONE=$(ask "Scheduler timezone" "UTC")
 set_env_var SCHEDULER_TIMEZONE "${SCHEDULER_TIMEZONE}"
+
 APP_CONFIG="${ROOT_DIR}/config/app.php"
 sed -i "/'timezone' => 'UTC',\n/a \    'scheduler_timezone' => env('SCHEDULER_TIMEZONE', 'UTC'),\n" "$APP_CONFIG"
 # endregion
 
 # region --- PHP version ---
-read -rp "Specify the php version you wish to use: " PHP_VERSION
+PHP_VERSION=$(ask "Specify the php version you wish to use")
 ok "PHP version: $PHP_VERSION"
 
 if [[ -f "$ROOT_DIR/composer.json" ]]; then
@@ -174,7 +205,7 @@ fi
 # endregion
 
 # region --- Node version ---
-read -rp "Specify the node version you wish to use: " NODE_VERSION
+NODE_VERSION=$(ask "Specify the node version you wish to use")
 ok "Node version: $NODE_VERSION"
 # endregion
 
