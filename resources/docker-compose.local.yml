@@ -7,7 +7,7 @@ services:
         - APP_ENV=${APP_ENV:-production}
         - WWWUID=${UID:-1000}
         - WWWGID=${GID:-1000}
-    image: %VENDOR%/%APP_SLUG%
+    image: %@VENDOR@%/%@APP_SLUG@%
     restart: unless-stopped
     ports:
       - "${APP_PORT:-80}:80"
@@ -16,7 +16,7 @@ services:
       - ".:/var/www/html"
       - "~/.ssh:/var/www/.ssh"
     networks:
-      - %APP_SLUG%
+      - %@APP_SLUG@%
     depends_on:
       - db
       - mailpit
@@ -28,7 +28,7 @@ services:
       start_period: 10s
 
   db: 
-    %DOCKERCOMPOSE_DB%
+    %@DOCKERCOMPOSE_DB@%
 
   mailpit:
     image: "axllent/mailpit:latest"
@@ -37,10 +37,10 @@ services:
       - "${FORWARD_MAILPIT_PORT:-1025}:1025"
       - "${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025"
     networks:
-      - %APP_SLUG%
+      - %@APP_SLUG@%
 
 networks:
-  %APP_SLUG%:
+  %@APP_SLUG@%:
     driver: bridge
 volumes:
-  %DB_CONNECTION%_data:
+  %@DB_CONNECTION@%_data:

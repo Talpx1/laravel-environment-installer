@@ -1,5 +1,5 @@
 # Use PHP with Apache as the base image
-FROM php:%PHP_VERSION%-apache AS web
+FROM php:%@PHP_VERSION@%-apache AS web
 
 ARG APP_ENV="production"
 ARG WWWUID=1000
@@ -8,11 +8,11 @@ ARG WWWGID=1000
 # Install Additional System Dependencies then Clear cache
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    nano supervisor cron libpq-dev libicu-dev libzip-dev unzip bash logrotate %APT_DB_PACKAGES% && \
+    nano supervisor cron libpq-dev libicu-dev libzip-dev unzip bash logrotate %@APT_DB_PACKAGES@% && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install PHP extensions
-RUN docker-php-ext-install %PHP_PDO_EXT% opcache intl zip
+RUN docker-php-ext-install %@PHP_PDO_EXT@% opcache intl zip
 
 # Enable Apache mod_rewrite for URL rewriting
 RUN a2enmod rewrite
@@ -44,7 +44,7 @@ COPY ./docker/configs/vite-watch.conf /etc/supervisor/conf.d/vite-watch.conf
 COPY ./docker/configs/apache-supervisor.conf /etc/supervisor/conf.d/apache.conf
 
 # Setup logrotate
-COPY ./docker/configs/logrotate /etc/logrotate.d/%APP_SLUG%
+COPY ./docker/configs/logrotate /etc/logrotate.d/%@APP_SLUG@%
 
 # Setup Watchtower lifecycle executables
 COPY ./docker/scripts/post-update.sh /post-update.sh
@@ -64,12 +64,12 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Install project dependencies
 RUN composer install --prefer-dist --no-progress --no-scripts --no-dev --optimize-autoloader --no-suggest
 
-%DOCKERFILE_PRELOAD_SETUP%
+%@DOCKERFILE_PRELOAD_SETUP@%
 
 # preparing cache folders so its sure they exists and that they will be owned by www-data
 RUN mkdir -p /var/www/.cache /var/www/.npm /var/www/.config/psysh
 # install Node.js and npm
-RUN curl -fsSL https://deb.nodesource.com/setup_%NODE_VERSION%.x | bash - && \
+RUN curl -fsSL https://deb.nodesource.com/setup_%@NODE_VERSION@%.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g npm@latest
 # npm dependencies

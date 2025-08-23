@@ -568,22 +568,22 @@ info "Setting up the environment with the specified settings..."
 TMP_DIR=$(mktemp -d)
 
 shopt -s dotglob 
-cp -r "$RESOURCES_DIR/"* "$TMP_DIR/"
+cp -r "${RESOURCES_DIR}/"* "${TMP_DIR}/"
 shopt -u dotglob
 
-PLACEHOLDERS=$(grep -rho "%[A-Z0-9_]\+%" "$TMP_DIR" | sort -u | tr -d '%')
+PLACEHOLDERS=$(grep -rho "%@[A-Z0-9_]\+@%" "${TMP_DIR}" | sort -u | tr -d '%@')
 
 for VAR in $PLACEHOLDERS; do
     if [[ -n "${!VAR-}" ]]; then
             VALUE="${!VAR}"
 
-            find "$DIR" -type f -exec perl -0777 -i -pe '
+            find "${TMP_DIR}" -type f -exec perl -0777 -i -pe '
                 my $var = shift;
                 my $val = shift;
                 s/\Q%$var%\E/$val/g;
             ' _ "$VAR" "$VALUE" {} +
     else
-        warn "No value found for placeholder $VAR, leaving as is. This should not happen, please report issue on GitHub!"
+        warn "No value found for placeholder ${VAR}, leaving as is. This should not happen, please report issue on GitHub!"
     fi
 done
 ok "Settings applied"
