@@ -465,8 +465,8 @@ if [[ "$USE_BACKUP" == "y" ]]; then
         if [[ "$DB_CONNECTION" == "pgsql" ]]; then
             sed -i "s|'database_dump_file_extension' => .*|'database_dump_file_extension' => 'backup',|" "$BACKUP_CONFIG"
         fi
-        sed -i "/'disks' => \[/,/\],/c\            'disks' => ['backups']," "$BACKUP_CONFIG"
-        sed -i "/'to' => 'your@example.com',/c\            'to' => env('BACKUP_NOTIFICATION_EMAIL')," "$BACKUP_CONFIG"        
+        sed -i "s/'disks' => \[[^]]*\]/'disks' => ['backups']/" "$BACKUP_CONFIG"
+        sed -i "s/'to' => 'your@example.com'/'to' => env('BACKUP_NOTIFICATION_EMAIL')/" "$BACKUP_CONFIG"        
         ok "Patched backup.php configuration"
 
         read -rp "Do you want to use slack notifications for backups? (y/N): " USE_SLACK_BACKUP
