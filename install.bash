@@ -15,10 +15,6 @@ read_env() {
     local VAR_NAME="$1"
     local FILE="${2:-"${ROOT_DIR}/.env"}"
 
-    if [[ -z "${FILE}" ]]; then
-        FILE="${ROOT_DIR}/.env"
-    fi
-
     return "$(grep -q "^${VAR_NAME}=" "${FILE}")"
 }
 
