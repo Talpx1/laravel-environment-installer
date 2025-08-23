@@ -519,8 +519,11 @@ fi
 # region other dependencies
 COMPOSER_DEPENDENCIES=(lorisleiva/laravel-actions staudenmeir/belongs-to-through staudenmeir/eloquent-has-many-deep)
 for DEPENDENCY in "${COMPOSER_DEPENDENCIES[@]}"; do
-    composer_require "${DEPENDENCY}" 
-    ok "${DEPENDENCY} installed"
+    PKG_CONFIRM=$(ask "Do you want to ${DEPENDENCY}? (y/N):")
+    if [[ "$PKG_CONFIRM" == "y" ]]; then
+        composer_require "${DEPENDENCY}" 
+        ok "${DEPENDENCY} installed"
+    fi
 done
 # endregion
 
@@ -571,8 +574,9 @@ PLACEHOLDERS=$(grep -rho "%[A-Z0-9_]\+%" "$TMP_DIR" | sort -u | tr -d '%')
 
 for VAR in $PLACEHOLDERS; do
     if [[ -n "${!VAR-}" ]]; then
-        VALUE="${!VAR}"
-        find "$TMP_DIR" -type f -exec sed -i "s|%$VAR%|$VALUE|g" {} +
+        VALUE="${!VAR}"        
+        ESCAPED_VALUE=$(printf '%s' "$VALUE" | perl -pe 's/([\\\$\@])/\\$1/g')        
+        find "$TMP_DIR" -type f -exec perl -0777 -i -pe "s/%$VAR%/$ESCAPED_VALUE/g" {} +
     else
         warn "No value found for placeholder $VAR, leaving as is. This should not happen, please report issue on GitHub!"
     fi
