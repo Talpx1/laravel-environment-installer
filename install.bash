@@ -2,7 +2,7 @@
 
 # Special thanks to ChatGPT
 
-set -euo pipefail
+set -Eeuo pipefail
 
 # region --- paths ---
 ROOT_DIR="$(pwd)"
@@ -15,7 +15,9 @@ read_env() {
     local VAR_NAME="$1"
     local FILE="${2:-"${ROOT_DIR}/.env"}"
 
-    return "$(grep -q "^${VAR_NAME}=" "${FILE}")"
+    if [[ -f "$FILE" ]]; then        
+        grep -E "^${VAR_NAME}=" "$FILE" | head -n1 | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/^"\(.*\)"$/\1/'
+    fi
 }
 
 set_env_var() {
@@ -25,7 +27,7 @@ set_env_var() {
     for ENV_FILE in "$ROOT_DIR/.env" "$ROOT_DIR/.env.example"; do
         if [[ -f "${ENV_FILE}" ]]; then
             if read_env "${KEY}" "$ENV_FILE"; then
-                sed -i "s|^${KEY}=.*|${KEY}=${VALUE}|" "$ENV_FILE"
+                sed -i "s|^${KEY}=.*|${KEY}=$(printf '%s' "$VALUE" | sed 's/[&/\]/\\&/g')|" "$ENV_FILE"
                 info "Modified ${KEY} in $(basename "$ENV_FILE")"
             else
                 echo "" >> "$ENV_FILE"
@@ -37,13 +39,7 @@ set_env_var() {
 }
 
 run_in_root_dir(){
-    local PREV_PWD
-    PREV_PWD=$(pwd)
-    cd "${ROOT_DIR}"
-
-    "$@"
-
-    cd "${PREV_PWD}"
+    (cd "${ROOT_DIR}" && "$@")
 }
 
 composer_require() {
@@ -63,14 +59,14 @@ composer_run() {
 }
 
 slugify() {
-    return "$(echo "$1" | iconv -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g;s/^_+|_+$//g')"
+    echo "$1" | iconv -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g;s/^_+|_+$//g'
 }
 
 ask() {
     local PROMPT="$1"
     local DEFAULT="${2:-}"
 
-    if [[ -z "${DEFAULT}" ]]; then
+    if [[ -n "${DEFAULT}" ]]; then
         PROMPT="${PROMPT} [${DEFAULT}]"
     fi
 
@@ -78,11 +74,12 @@ ask() {
     read -rp "${PROMPT}: " INPUT
     INPUT=${INPUT:-$DEFAULT}
 
-    return "${INPUT}" 
+    echo "${INPUT}" 
 }
 
 trim() {
-    return "$(echo "$1" | cut -d= -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)"
+    local VAL="$1"
+    echo "$VAL" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 # endregion
 
