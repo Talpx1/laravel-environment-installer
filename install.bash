@@ -26,17 +26,20 @@ set_env_var() {
 
     for ENV_FILE in "$ROOT_DIR/.env" "$ROOT_DIR/.env.example"; do
         if [[ -f "${ENV_FILE}" ]]; then
-            if read_env "${KEY}" "$ENV_FILE"; then
-                sed -i "s|^${KEY}=.*|${KEY}=$(printf '%s' "$VALUE" | sed 's/[&/\]/\\&/g')|" "$ENV_FILE"
+            if [[ -n "$(read_env "${KEY}" "$ENV_FILE")" ]]; then                
+                local ESCAPED
+                ESCAPED=$(printf '%s' "$VALUE" | sed 's/[&/\]/\\&/g')
+                sed -i "s|^${KEY}=.*|${KEY}=\"${ESCAPED}\"|" "$ENV_FILE"
                 info "Modified ${KEY} in $(basename "$ENV_FILE")"
             else
                 echo "" >> "$ENV_FILE"
-                echo "${KEY}=${VALUE}" >> "$ENV_FILE"
+                echo "${KEY}=\"${VALUE}\"" >> "$ENV_FILE"
                 info "Added ${KEY}=${VALUE} to $(basename "$ENV_FILE")"
             fi
         fi
     done
 }
+
 
 run_in_root_dir(){
     (cd "${ROOT_DIR}" && "$@")
