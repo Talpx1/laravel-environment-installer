@@ -11,7 +11,7 @@ RESOURCES_DIR="$SCRIPT_DIR/resources"
 # endregion
 
 #region --- utils ---
-read_env() {
+read_env_var() {
     local VAR_NAME="$1"
     local FILE="${2:-"${ROOT_DIR}/.env"}"
 
@@ -26,10 +26,7 @@ set_env_var() {
 
     for ENV_FILE in "$ROOT_DIR/.env" "$ROOT_DIR/.env.example"; do
         if [[ -f "${ENV_FILE}" ]]; then
-            local CURRENT
-            CURRENT=$(read_env "$KEY" "$ENV_FILE")
-
-            if [[ -n "$CURRENT" ]]; then                
+            if grep -q "^${KEY}=" "$ENV_FILE"; then                
                 local ESCAPED
                 ESCAPED=$(printf '%s' "$VALUE" | sed 's/[&/\]/\\&/g')
                 sed -i "s|^${KEY}=.*|${KEY}=\"${ESCAPED}\"|" "$ENV_FILE"
@@ -150,7 +147,7 @@ fi
 # endregion
 
 # region --- app name/slug/vendor ---
-DEFAULT_APP_NAME=$(read_env "APP_NAME")
+DEFAULT_APP_NAME=$(read_env_var "APP_NAME")
 APP_NAME=$(ask "Specify the app name" "${DEFAULT_APP_NAME:-Laravel}") 
 set_env_var APP_NAME "${APP_NAME}"
 ok "APP_NAME = $APP_NAME"
